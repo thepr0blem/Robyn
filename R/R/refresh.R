@@ -117,6 +117,8 @@ robyn_refresh <- function(json_file = NULL,
                           calibration_input = NULL,
                           objective_weights = NULL,
                           ...) {
+
+  message(">>> Running robyn_refresh() ver 3")
   refreshControl <- TRUE
   while (refreshControl) {
     ## Check for NA values
@@ -228,10 +230,17 @@ robyn_refresh <- function(json_file = NULL,
     if (TRUE) {
       InputCollectRF$refreshAddedStart <- as.Date(InputCollectRF$window_end) + InputCollectRF$dayInterval
       totalDates <- as.Date(dt_input[, InputCollectRF$date_var][[1]])
-      refreshStart <- InputCollectRF$window_start <- as.Date(InputCollectRF$window_start) + InputCollectRF$dayInterval * refresh_steps
+      
+      # Set refreshStart to the FIRST date in your dataset
+      firstDate <- min(totalDates)
+      refreshStart <- InputCollectRF$window_start <- firstDate
       refreshStartWhich <- InputCollectRF$rollingWindowStartWhich <- which.min(abs(difftime(totalDates, refreshStart, units = "days")))
+      
+      # Only update the end date
       refreshEnd <- InputCollectRF$window_end <- as.Date(InputCollectRF$window_end) + InputCollectRF$dayInterval * refresh_steps
       refreshEndWhich <- InputCollectRF$rollingWindowEndWhich <- which.min(abs(difftime(totalDates, refreshEnd, units = "days")))
+      
+      # Update the window length based on the new end date but same start date
       InputCollectRF$rollingWindowLength <- refreshEndWhich - refreshStartWhich + 1
     }
 
@@ -392,9 +401,12 @@ robyn_refresh <- function(json_file = NULL,
       }
       listReportPrev <- listOutputPrev
       names(listReportPrev) <- paste0(names(listReportPrev), "Report")
+
+      # 
       listReportPrev$mediaVecReport <- listOutputPrev$mediaVecCollect %>%
         filter(
-          .data$ds >= (refreshStart - InputCollectRF$dayInterval * refresh_steps),
+          # Filter from the first date in the dataset
+          .data$ds >= firstDate,
           .data$ds <= (refreshEnd - InputCollectRF$dayInterval * refresh_steps)
         ) %>%
         bind_rows(
@@ -406,6 +418,7 @@ robyn_refresh <- function(json_file = NULL,
             )
         ) %>%
         arrange(.data$type, .data$ds, .data$refreshStatus)
+      # 
       listReportPrev$xDecompVecReport <- listOutputPrev$xDecompVecCollect %>%
         bind_rows(
           OutputCollectRF$xDecompVecCollect %>%
